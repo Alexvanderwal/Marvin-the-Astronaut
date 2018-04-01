@@ -17,4 +17,5 @@ I don't know that myself yet but i'll come back to this.
 
 ## Calling the bot
 
-Same as above
+You can call the bot thus far with the prefix "Marvin, "
+Obviously this isn't an easy or good prefix but it's something i like to use at the moment.
