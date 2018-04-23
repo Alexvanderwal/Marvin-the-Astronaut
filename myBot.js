@@ -57,7 +57,7 @@ client.on("message", (message) => {
 
   // Admin commands
   // Commands for Haan#0420 only
-  if(message.author.id !== config.ownerID) return;
+  if(message.author.id !== '189716214795337729') return;
 });
 
 client.login(config.token);
