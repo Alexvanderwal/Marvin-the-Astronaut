@@ -26,9 +26,7 @@ client.on("message", (message) => {
   }
 
   if (command === "asl") {
-    let age = args[0]; // Remember arrays are 0-based!.
-    let sex = args[1];
-    let location = args[2];
+    let [age, sex, location] = args;
     message.channel.send(`Hallo ${message.author.username}, Ik zie dat je ${age} jaar oud en een ${sex} bent uit ${location}. Wil je me klapjes geven?`);
   }
 
@@ -54,9 +52,18 @@ client.on("message", (message) => {
     message.channel.send(`Het ziet er naar uit dat ${message.author} nog op planeet Aarde is.`),
     message.channel.send(`Kan iemand wat wiet voor hem regelen?! <:wooooOOOOOOOOOOWWWWWW:432266541778731018>`);
   }
+  if (command === "coolboi"){
+    let rng = Math.floor(Math.random() * 101);
+    if (rng === 69){
+      message.channel.send(`wooooWWWIIEEEE, kijk de NEUK eens AAN! MIJN GOD! Het is jouw GELUKT! Misschien kan je nu wel iets vets krijgen! WOAH!
+      Wat je zou kunnen winnen wist Haan nog niet toen hij deze command maakte, haha! <:huehuehuehuehuehue:438031814641057792>`);
+    } else {
+      message.channel.send(`Nou nou, heb jij een leuke command ontdekt die nog geen nuttige functie heeft? Goed bezig hoor, wat mij betreft is jouw coolheidsniveau ongeveer ${rng}. Lekker bezig, Pik! <:huehuehuehuehuehue:438031814641057792>`);
+      }
+    }
 
   // Admin commands
-  // Commands for Haan#0420 only
+  // commands for Haan#0420 only
   if(message.author.id !== '189716214795337729') return;
 });
 
