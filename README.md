@@ -9,13 +9,19 @@ The idea for the bot however is that it is set around my interests, so what it c
 ..* Giving fun facts about space, theories about space and the like
 ..* Sending a random song of the genre you choose
 ..* Giving reminders about things to do and when
+..* Letting people know you want to toke and how high you are
 ..* And more as soon as i can think of it
 
 ## How to add this bot to your server?
 
-I don't know that myself yet but i'll come back to this.
+I would not suggest just taking over this bot but forking it and altering it so it works best for you. Creating and adding a bot is a simple process that can easily be looked up. 
+Furthermore, obviously the config.json isn't ready for use out-of-the-box, it needs to be altered before it can be used by adding a token and a prefix.
+
 
 ## Calling the bot
 
-You can call the bot thus far with the prefix "Marvin, "
-Obviously this isn't an easy or good prefix but it's something i like to use at the moment.
+The prefix is an emote that is exclusive to one of my servers. Fork the bot and alter the config prefix so the bot can be called.
+
+## PS
+
+The language in this bot is dutch, if you really want this one for yourself then feel free to message me and i make a translated version of it.
