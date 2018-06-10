@@ -17,7 +17,15 @@ client.on("message", (message) => {
   if(message.author.bot) return;
   const args = message.content.slice(config.prefix.length).trim().split(/ +/g);
   const command = args.shift().toLowerCase();
+  const bericht = message.content.toLowerCase();
   // Exit and stop if it's not there
+  if (bericht.includes('ruimte')){
+    message.react('🌌')
+  }
+  if (bericht.includes('hoog')){
+    message.react('☁')
+  }
+
   if (!message.content.startsWith(config.prefix)) return;
 
   // list with commands
@@ -35,7 +43,6 @@ client.on("message", (message) => {
   }
 
   if (command === "bestenummer"){
-    message.channel.send('Ey swa, gozer. Dat lijkt me nogal wiedes, ea. Is Toto Africa natuurlijk, of nie dan.')
     message.channel.send('https://open.spotify.com/track/2374M0fQpWi3dLnB54qaLX?si=UxTPgKJrR9i8kELKmUaaog');
   }
 
