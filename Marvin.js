@@ -18,14 +18,19 @@ client.on("message", (message) => {
   const args = message.content.slice(config.prefix.length).trim().split(/ +/g);
   const command = args.shift().toLowerCase();
   const bericht = message.content.toLowerCase();
-  // Exit and stop if it's not there
-  if (bericht.includes('ruimte')){
-    message.react('🌌')
-  }
-  if (bericht.includes('hoog')){
-    message.react('☁')
+  
+  //Check message for word to comment on
+  const responses = {'ruimte' : '🌌', 'hoog' : '☁'}
+  for(let [trigger, response] of Object.entries(responses))
+  {
+    if(bericht.includes(trigger)){
+      message.react(response)
+    } else{
+      continue
+    }
   }
 
+  // Exit and stop if it's not there
   if (!message.content.startsWith(config.prefix)) return;
 
   // list with commands
