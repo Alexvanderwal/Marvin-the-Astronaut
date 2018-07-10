@@ -2,6 +2,8 @@ const Discord = require("discord.js");
 const client = new Discord.Client();
 let currentSmokeCircle;
 const config = require("./config.json");
+const database = require("./db/");
+const db = database.db;
 
 client.on("ready", () => {
   //Console stuff
@@ -13,8 +15,8 @@ client.on("ready", () => {
 
 function Participator(user, weedSelection, smokeSelection) {
   this.user = user;
-  this.weedSelection = 'test';
-  this.smokeSelection = 'wiet';
+  this.weedSelection = weedSelection;
+  this.smokeSelection = smokeSelection;
 }
 
 
@@ -31,8 +33,18 @@ function SmokeCircle(message, weedSelection, smokeSelection) {
 
 
 function smokeCircle(message, args, command, bericht) {
+  let [rookMethode, ...wietSelectie] = args;
+  wietSelectie = wietSelectie.join(' ');
   let customMessage;
-  const wietSelectie = args.slice(1).join(' ');
+  if (rookMethode === 'stats' && currentSmokeCircle) {
+    customMessage = `${currentSmokeCircle.participants.length} mensen zitten lekker te paffen`
+
+    message.channel.send(customMessage);
+    return;
+  } else if (rookMethode === 'stats') {
+    return;
+  }
+
   // This isn't good code :)
   if (currentSmokeCircle) {
     console.log(currentSmokeCircle.participants);
@@ -40,14 +52,12 @@ function smokeCircle(message, args, command, bericht) {
       customMessage = 'yo je zit er al in maat';
 
     } else {
-      currentSmokeCircle.addParticipant(message.author, 'joint', 'amnesia haze');
-      console.log(currentSmokeCircle.starter);
+      currentSmokeCircle.addParticipant(message.author, rookMethode, wietSelectie);
       customMessage = `${message.author} heeft besloten om het rookcirkeltje van ${currentSmokeCircle.starter.user} binnen te sluipen`
-      // currentSmokeCircle.participants.push(new Participator(message.author, 'joint', 'hazeje'))
     }
   } else {
-    currentSmokeCircle = new SmokeCircle(message, 'joint', args[1]);
-    customMessage = `Zo. ${message.author} doet nog wat extra ${wietSelectie} in zijn ${args[0]}. Ga met ook mee op ruimtereis met ${message.author}!`;
+    currentSmokeCircle = new SmokeCircle(message, rookMethode, wietSelectie);
+    customMessage = `Zo. ${message.author} doet nog wat extra ${wietSelectie} in zijn ${rookMethode}. Ga met ook mee op ruimtereis met ${message.author}!`;
   }
   message.channel.send(customMessage);
 }
@@ -59,7 +69,6 @@ client.on("message", message => {
   const args = message.content.slice(config.prefix.length).trim().split(/ +/g);
   const command = args.shift().toLowerCase();
 
-
   //Check message for word to comment on
   const responses = { 'ruimte': '🌌', 'hoog': '☁' }
   for (let [trigger, response] of Object.entries(responses)) {
@@ -70,8 +79,9 @@ client.on("message", message => {
     }
   }
 
-  // Exit and stop if it's not there
   if (!message.content.startsWith(config.prefix)) return;
+
+
 
   // list with commands
   if (command === 'ping') {
@@ -79,7 +89,7 @@ client.on("message", message => {
   }
 
   if (command === "asl") {
-    let [age, sex, location] = args;
+    let [age, sex, ...location] = args;
     message.channel.send(`Hallo ${message.author.username}, Ik zie dat je ${age} jaar oud en een ${sex} bent uit ${location}. Wil je me klapjes geven?`);
   }
 
