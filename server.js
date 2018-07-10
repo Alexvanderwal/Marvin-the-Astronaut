@@ -17,6 +17,7 @@ function Participator(user, weedSelection, smokeSelection) {
   this.user = user;
   this.weedSelection = weedSelection;
   this.smokeSelection = smokeSelection;
+
 }
 
 
@@ -44,8 +45,6 @@ function smokeCircle(message, args, command, bericht) {
   } else if (rookMethode === 'stats') {
     return;
   }
-
-  // This isn't good code :)
   if (currentSmokeCircle) {
     console.log(currentSmokeCircle.participants);
     if (message.author.id in currentSmokeCircle.participants) {
