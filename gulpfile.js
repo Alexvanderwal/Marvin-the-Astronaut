@@ -10,7 +10,7 @@ gulp.task("nodemon", function (cb) {
     return nodemon({
         script: "server.js",
         ignore: ["./static", "./public"],
-        nodeArgs: ["--inspect=0.0.0.0:9229"],
+        nodeArgs: ["--inspect=0.0.0.0:9222"],
     }).on("start", function () {
         if (!started) {
             cb();

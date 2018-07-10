@@ -4,6 +4,8 @@ let currentSmokeCircle;
 const config = require("./config.json");
 const database = require("./db/");
 const db = database.db;
+const models = database.models;
+const timeOut = 1800000; // 5s in ms
 
 client.on("ready", () => {
   //Console stuff
@@ -17,10 +19,15 @@ function Participator(user, weedSelection, smokeSelection) {
   this.user = user;
   this.weedSelection = weedSelection;
   this.smokeSelection = smokeSelection;
-
 }
 
 
+/**
+ * Representation of a 'active' smoke circle
+ * @param {} message 
+ * @param {*} weedSelection 
+ * @param {*} smokeSelection 
+ */
 function SmokeCircle(message, weedSelection, smokeSelection) {
   this.participants = {};
   tempObj = new Participator(message.author, weedSelection, smokeSelection);
@@ -33,20 +40,24 @@ function SmokeCircle(message, weedSelection, smokeSelection) {
 }
 
 
+
+
+
 function smokeCircle(message, args, command, bericht) {
+  function clearSmokeCircle() {
+    // TODO: Add the smokecircle to the DB so the data stays persistent
+    message.channel.send(`De rook begint langzaam de kamer te verlaten. Het ziet ernaar uit dat het rook cirkeltje van ${currentSmokeCircle.starter.user} aardig in rook is opgegaan.`);
+
+    currentSmokeCircle = false;
+  }
   let [rookMethode, ...wietSelectie] = args;
   wietSelectie = wietSelectie.join(' ');
   let customMessage;
-  if (rookMethode === 'stats' && currentSmokeCircle) {
-    customMessage = `${currentSmokeCircle.participants.length} mensen zitten lekker te paffen`
 
-    message.channel.send(customMessage);
-    return;
-  } else if (rookMethode === 'stats') {
+  if (rookMethode === 'stats' && !currentSmokeCircle) {
     return;
   }
   if (currentSmokeCircle) {
-    console.log(currentSmokeCircle.participants);
     if (message.author.id in currentSmokeCircle.participants) {
       customMessage = 'yo je zit er al in maat';
 
@@ -54,9 +65,16 @@ function smokeCircle(message, args, command, bericht) {
       currentSmokeCircle.addParticipant(message.author, rookMethode, wietSelectie);
       customMessage = `${message.author} heeft besloten om het rookcirkeltje van ${currentSmokeCircle.starter.user} binnen te sluipen`
     }
+
+    if (rookMethode === 'stats') {
+      customMessage = `${Object.keys(currentSmokeCircle.participants).length} mensen zitten lekker te paffen`;
+    }
+
   } else {
+    tempCurrSmokeCircle = models.SmokeCircle.create();
     currentSmokeCircle = new SmokeCircle(message, rookMethode, wietSelectie);
     customMessage = `Zo. ${message.author} doet nog wat extra ${wietSelectie} in zijn ${rookMethode}. Ga met ook mee op ruimtereis met ${message.author}!`;
+    setTimeout(clearSmokeCircle, timeOut);
   }
   message.channel.send(customMessage);
 }
