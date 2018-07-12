@@ -1,11 +1,14 @@
+// import { Sequelize } from "./db/database";
+
 const Discord = require("discord.js");
 const client = new Discord.Client();
 let currentSmokeCircle;
 const config = require("./config.json");
 const database = require("./db/");
-const db = database.db;
+const db = database.database;
+const Sequelize = require('sequelize');
 const models = database.models;
-const timeOut = 1800000; // 5s in ms
+const timeOut = 30000; // 5s in ms  
 
 client.on("ready", () => {
   //Console stuff
@@ -15,72 +18,131 @@ client.on("ready", () => {
   client.user.setActivity('sick supernovas in space', { type: 'WATCHING' })
 });
 
-function Participator(user, weedSelection, smokeSelection) {
-  this.user = user;
-  this.weedSelection = weedSelection;
-  this.smokeSelection = smokeSelection;
-}
-
-
 /**
- * Representation of a 'active' smoke circle
- * @param {} message 
- * @param {*} weedSelection 
- * @param {*} smokeSelection 
- */
-function SmokeCircle(message, weedSelection, smokeSelection) {
-  this.participants = {};
-  tempObj = new Participator(message.author, weedSelection, smokeSelection);
-  this.starter = tempObj;
-  this.participants[message.author.id] = tempObj;
-  this.startTime = Date.now();
-  this.addParticipant = function (user, weedSelection, smokeSelection) {
-    this.participants[message.author.id] = new Participator(message.author, weedSelection, smokeSelection);
-  }
+ *  Groups by a specific attribute and counts the number of records including this attribute value there are.
+ * **/
+async function countByAttribute(attributeName, labelName, where = {}) {
+  return await models.SmokeCircleParticipation.findAll({
+    group: [attributeName],
+    attributes: [attributeName, [Sequelize.fn('COUNT', attributeName), labelName]],
+    raw: true,
+    where: where
+  });
 }
 
-
-
-
-
-function smokeCircle(message, args, command, bericht) {
+async function smokeCircle(message, args, command, bericht) {
   function clearSmokeCircle() {
-    // TODO: Add the smokecircle to the DB so the data stays persistent
-    message.channel.send(`De rook begint langzaam de kamer te verlaten. Het ziet ernaar uit dat het rook cirkeltje van ${currentSmokeCircle.starter.user} aardig in rook is opgegaan.`);
+    message.channel.send(`De rook begint langzaam de kamer te verlaten. Het ziet ernaar uit dat het rook cirkeltje van ${message.guild.members.get(currentSmokeCircle.starterId)} aardig in rook is opgegaan.`);
 
     currentSmokeCircle = false;
   }
+
+  async function fetchUser() {
+    tempCurrSmoker = await models.Smoker.findOne({ where: { id: message.author.id } })
+    if (!tempCurrSmoker) {
+      tempCurrSmoker = await models.Smoker.create({ id: message.author.id });
+    }
+    return tempCurrSmoker;
+  }
+
+  let customMessage;
+  let messages = {
+    'missingInput': "Hee wat leuk dat je mee wilt roken in onze rookcirkel! Hoe ga je de wiet roken en welke soort is het Laat me weten wat dat is door 'rook [rookmethode] [wietsoort]"
+    , 'noCircleYet': "Het blijkt dat er nog helemaal geen rook ronde is joh!"
+  }
+
   let [rookMethode, ...wietSelectie] = args;
   wietSelectie = wietSelectie.join(' ');
-  let customMessage;
 
-  if (rookMethode === 'stats' && !currentSmokeCircle) {
+  if (!rookMethode && rookMethode !== 'stats' && !wietSelectie) {
+    message.channel.send(messages.missingInput);
     return;
   }
+
+  if (rookMethode === 'stats' && !currentSmokeCircle) {
+    message.channel.send(messages.noCircleYet);
+    return;
+  }
+
   if (currentSmokeCircle) {
-    if (message.author.id in currentSmokeCircle.participants) {
-      customMessage = 'yo je zit er al in maat';
-
-    } else {
-      currentSmokeCircle.addParticipant(message.author, rookMethode, wietSelectie);
-      customMessage = `${message.author} heeft besloten om het rookcirkeltje van ${currentSmokeCircle.starter.user} binnen te sluipen`
-    }
-
+    let allSmokers = await currentSmokeCircle.getSmokers({
+      group: ['smokerId'],
+      raw: true
+    })
     if (rookMethode === 'stats') {
-      customMessage = `${Object.keys(currentSmokeCircle.participants).length} mensen zitten lekker te paffen`;
+      let circleMethodCount = await countByAttribute('smokingMethod', 'smokeCount', { smokecircleId: currentSmokeCircle.id })
+      let weedSpecies = await countByAttribute('smokedProduct', 'smokeCount', { smokecircleId: currentSmokeCircle.id })
+      let smokerRankings = await countByAttribute('smokerId', 'total', { smokecircleId: currentSmokeCircle.id })
+
+      let winner = smokerRankings.pop();
+
+
+      message.channel.send(` 
+      \`${allSmokers.length} steeners zitten al lekker in het cirkeltje. Het volgende is al opgerookt/gebruikt tijdens deze sessie\n
+      rookmethodes 
+      ${circleMethodCount.map((method, index) => `${method.smokingMethod}: ${method.smokeCount}x \n`).join('')}
+      soorten wiet
+      ${weedSpecies.map((method, index) => `${method.smokedProduct}: ${method.smokeCount}x \n`).join('')}
+      Gefeliciteerd ${ message.guild.members.get(winner.smokerId)}! Je hebt het meest gerookt met ${winner.total} beurten!!
+       
+      \``)
+
+      customMessage = `${allSmokers.length} steeners zitten al lekker in het cirkeltje`;
+      // message.channel.send(customMessage);
+      return;
     }
+    currentSmoker = await fetchUser();
+
+    for (smoker of allSmokers) {
+      if (smoker.id == message.author.id) {
+        // ADD wont allow us to actually create new records for the same user in the same circle
+        await models.SmokeCircleParticipation.create({
+          smokerId: currentSmoker.id,
+          smokecircleId: currentSmokeCircle.id,
+          smokingMethod: rookMethode,
+          smokedProduct: wietSelectie
+        })
+        customMessage = `${message.author} is niet te stoppen! Deze jongen gaat gewoon nog een keer met zijn ${rookMethode} vol gestampt met ${wietSelectie}`;
+        message.channel.send(customMessage);
+        return;
+      }
+    }
+
+    currentSmokeCircle.addSmokers([currentSmoker], { through: { smokingMethod: rookMethode, smokedProduct: wietSelectie } });
+    customMessage = `${message.author} heeft besloten om het rookcirkeltje van ${message.guild.members.get(currentSmokeCircle.starterId)} binnen te sluipen met zijn ${rookMethode} vol gestampt met ${wietSelectie}`
 
   } else {
-    tempCurrSmokeCircle = models.SmokeCircle.create();
-    currentSmokeCircle = new SmokeCircle(message, rookMethode, wietSelectie);
-    customMessage = `Zo. ${message.author} doet nog wat extra ${wietSelectie} in zijn ${rookMethode}. Ga met ook mee op ruimtereis met ${message.author}!`;
+    tempCurrSmoker = await fetchUser();
+
+    currentSmokeCircle = await models.SmokeCircle.create();
+    await currentSmokeCircle.addSmokers([tempCurrSmoker], { through: { smokingMethod: rookMethode, smokedProduct: wietSelectie } });
+    currentSmokeCircle.setStarter(tempCurrSmoker);
+
+    customMessage = `Zo. ${message.author} doet nog wat extra ${wietSelectie} in zijn ${rookMethode}, en begint hiermee een lekker rookcirkeltje. Ga met ook mee op ruimtereis met ${message.author}!`;
     setTimeout(clearSmokeCircle, timeOut);
   }
   message.channel.send(customMessage);
 }
 
+async function rookStats(message) {
 
-client.on("message", message => {
+  let methodCount = await countByAttribute('smokingMethod', "methodCount");
+  let weedSpecies = await countByAttribute('smokedProduct', "smokeCount");
+  let rookCirkelCount = await models.SmokeCircle.count();
+
+  console.log(methodCount);
+  message.channel.send(` 
+    \`
+    Deze statisieken zijn vergaard tijdens ${rookCirkelCount} rookcirkels \n
+    rookmethodes 
+    ${methodCount.map((method, index) => `${method.smokingMethod}: ${method.methodCount}x \n`).join('')}
+    soorten wiet
+    ${weedSpecies.map((weed, index) => `${weed.smokedProduct}: ${weed.smokeCount}x \n`).join('')}
+  
+  \``)
+}
+
+client.on("message", async function (message) {
   if (message.author.bot) return;
   const bericht = message.content.toLowerCase();
   const args = message.content.slice(config.prefix.length).trim().split(/ +/g);
@@ -135,7 +197,10 @@ client.on("message", message => {
   }
   if (command === "rook") {
     smokeCircle(message, args, command, bericht);
+  }
 
+  if (command === "rookstats") {
+    rookStats(message)
   }
   //nutteloos lijstje van hoe high ik ben
   switch (command) {

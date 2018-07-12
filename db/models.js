@@ -20,7 +20,12 @@ function constructTableSettings(indexes = false, instanceMethods = false) {
 }
 
 
-SmokeCircleParticipation = database.define("SmokeCircleParticipation", {
+const SmokeCircleParticipation = database.define("SmokeCircleParticipation", {
+    id: {
+        type: Sequelize.INTEGER,
+        primaryKey: true,
+        autoIncrement: true
+    },
     smokingMethod: Sequelize.STRING,
     smokedProduct: Sequelize.STRING
 }
@@ -40,10 +45,12 @@ const SmokeCircle = database.define(
     "smokecircle", {}
 )
 
-Smoker.belongsToMany(SmokeCircle, { through: SmokeCircleParticipation });
-SmokeCircle.belongsToMany(Smoker, { through: SmokeCircleParticipation });
+SmokeCircle.belongsTo(Smoker, { as: "starter" });
+Smoker.belongsToMany(SmokeCircle, { through: { model: SmokeCircleParticipation, unique: false } });
+SmokeCircle.belongsToMany(Smoker, { through: { model: SmokeCircleParticipation, unique: false } });
 
 
 
 exports.Smoker = Smoker;
+exports.SmokeCircleParticipation = SmokeCircleParticipation;
 exports.SmokeCircle = SmokeCircle; 

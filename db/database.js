@@ -22,7 +22,7 @@ const database = new Sequelize(config.databasename, null, null, {
 async function bootDatabase() {
     try {
         await database.authenticate();
-        await database.sync({ force: true });
+        await database.sync();
         console.log("Database connection has been succesfully established");
     } catch (error) {
         console.error("Unable to connect to the database due to", error);
