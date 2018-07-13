@@ -8,7 +8,7 @@ const database = require("./db/");
 const db = database.database;
 const Sequelize = require('sequelize');
 const models = database.models;
-const timeOut = 30000; // 5s in ms  
+const timeOut = 30009; // 5s in ms  
 
 client.on("ready", () => {
   //Console stuff
@@ -30,14 +30,27 @@ async function countByAttribute(attributeName, labelName, where = {}) {
   });
 }
 
-async function smokeCircle(message, args, command, bericht) {
-  function clearSmokeCircle() {
-    message.channel.send(`De rook begint langzaam de kamer te verlaten. Het ziet ernaar uit dat het rook cirkeltje van ${message.guild.members.get(currentSmokeCircle.starterId)} aardig in rook is opgegaan.`);
+async function smokeCircle(message, arguments, command) {
+  async function clearSmokeCircle() {
+    let circleMethodCount = await countByAttribute('smokingMethod', 'smokeCount', { smokecircleId: currentSmokeCircle.id })
+    let weedSpecies = await countByAttribute('smokedProduct', 'smokeCount', { smokecircleId: currentSmokeCircle.id })
+    let smokerRankings = await countByAttribute('smokerId', 'total', { smokecircleId: currentSmokeCircle.id })
+
+    let winner = smokerRankings.pop();
+
+    message.channel.send(`De rook begint langzaam de kamer te verlaten. Het ziet ernaar uit dat het rook cirkeltje van <@${currentSmokeCircle.starterId}> aardig in rook is opgegaan.
+Het volgende is opgerookt/gebruikt tijdens deze sessie \n
+**joint, pijp, bong, alles wat je maar kan verzinnen om wiet mee te roken**
+${circleMethodCount.map((method, index) => `${method.smokingMethod}: ${method.smokeCount}x \n`).join('')}
+**wietjes, hashjes en dat soort spul**
+${weedSpecies.map((method, index) => `${method.smokedProduct}: ${method.smokeCount}x \n`).join('')}
+Gefeliciteerd <@${winner.smokerId}>! Je hebt het meest gerookt met ${winner.total} wietjes. Sucecs met je ruimte reis!
+`);
 
     currentSmokeCircle = false;
   }
 
-  async function fetchUser() {
+  async function fethOrCreateUser() {
     tempCurrSmoker = await models.Smoker.findOne({ where: { id: message.author.id } })
     if (!tempCurrSmoker) {
       tempCurrSmoker = await models.Smoker.create({ id: message.author.id });
@@ -45,21 +58,48 @@ async function smokeCircle(message, args, command, bericht) {
     return tempCurrSmoker;
   }
 
-  let customMessage;
-  let messages = {
-    'missingInput': "Hee wat leuk dat je mee wilt roken in onze rookcirkel! Hoe ga je de wiet roken en welke soort is het Laat me weten wat dat is door 'rook [rookmethode] [wietsoort]"
-    , 'noCircleYet': "Het blijkt dat er nog helemaal geen rook ronde is joh!"
+  function singleLineString(strings, ...values) {
+    // Interweave the strings with the
+    // substitution vars first.
+    let output = '';
+    for (let i = 0; i < values.length; i++) {
+      output += strings[i] + values[i];
+    }
+    output += strings[values.length];
+
+    // Split on newlines.
+    let lines = output.split(/(?:\r\n|\n|\r)/);
+
+    // Rip out the leading whitespace.
+    return lines.map((line) => {
+      return line.replace(/^\s+/gm, '');
+    }).join(' ').trim();
   }
 
-  let [rookMethode, ...wietSelectie] = args;
-  wietSelectie = wietSelectie.join(' ');
+  let customMessage;
+  // covert all array values after smokeMethod and call these 'weedstrain'
+  // This has be done to catch cases where you would type "Jack Herrer" or "Amazing Haze"
+  // TODO: Prevent people from saying stuff like "TIET" or "WILLEM"... children they are i swear
+  let [smokeMethod, ...weedStrain] = arguments;
+  weedStrain = weedStrain.join(' ');
 
-  if (!rookMethode && rookMethode !== 'stats' && !wietSelectie) {
+  let messages = {
+    'circleCreation': singleLineString`Zo. ${message.author} doet nog wat extra ${weedStrain} in zijn ${smokeMethod},
+                      en begint hiermee een lekker rookcirkeltje. Ga met ook mee op ruimtereis met ${message.author}!`.trim(),
+    'missingInput': singleLineString`Hee wat leuk dat je mee wilt roken in onze rookcirkel! Hoe ga je de wiet roken \
+                    en welke soort is het Laat me weten wat dat is door 'rook [rookmethode] [wietsoort]`,
+    'noCircleYet': singleLineString`Het blijkt dat er nog helemaal geen rook ronde is joh!`
+  }
+  // Removes tabs & spaces from the indented string
+
+
+
+  if (!smokeMethod && smokeMethod !== 'stats' && !weedStrain) {
     message.channel.send(messages.missingInput);
     return;
   }
 
-  if (rookMethode === 'stats' && !currentSmokeCircle) {
+  if (smokeMethod === 'stats' && !currentSmokeCircle) {
     message.channel.send(messages.noCircleYet);
     return;
   }
@@ -69,29 +109,24 @@ async function smokeCircle(message, args, command, bericht) {
       group: ['smokerId'],
       raw: true
     })
-    if (rookMethode === 'stats') {
+    if (smokeMethod === 'stats') {
       let circleMethodCount = await countByAttribute('smokingMethod', 'smokeCount', { smokecircleId: currentSmokeCircle.id })
       let weedSpecies = await countByAttribute('smokedProduct', 'smokeCount', { smokecircleId: currentSmokeCircle.id })
       let smokerRankings = await countByAttribute('smokerId', 'total', { smokecircleId: currentSmokeCircle.id })
 
       let winner = smokerRankings.pop();
 
-
       message.channel.send(` 
-      \`${allSmokers.length} steeners zitten al lekker in het cirkeltje. Het volgende is al opgerookt/gebruikt tijdens deze sessie\n
-      rookmethodes 
-      ${circleMethodCount.map((method, index) => `${method.smokingMethod}: ${method.smokeCount}x \n`).join('')}
-      soorten wiet
-      ${weedSpecies.map((method, index) => `${method.smokedProduct}: ${method.smokeCount}x \n`).join('')}
-      Gefeliciteerd ${ message.guild.members.get(winner.smokerId)}! Je hebt het meest gerookt met ${winner.total} beurten!!
-       
-      \``)
-
-      customMessage = `${allSmokers.length} steeners zitten al lekker in het cirkeltje`;
+      ${allSmokers.length} steeners zitten al lekker in het cirkeltje. Het volgende is al opgerookt/gebruikt tijdens deze sessie \n
+**joint, pijp, bong, alles wat je maar kan verzinnen om wiet mee te roken**
+${circleMethodCount.map((method, index) => `${method.smokingMethod}: ${method.smokeCount}x \n`).join('')}
+**wietjes, hashjes en dat soort spul**
+${weedSpecies.map((method, index) => `${method.smokedProduct}: ${method.smokeCount}x \n`).join('')}
+`)
       // message.channel.send(customMessage);
       return;
     }
-    currentSmoker = await fetchUser();
+    currentSmoker = await fethOrCreateUser();
 
     for (smoker of allSmokers) {
       if (smoker.id == message.author.id) {
@@ -99,59 +134,60 @@ async function smokeCircle(message, args, command, bericht) {
         await models.SmokeCircleParticipation.create({
           smokerId: currentSmoker.id,
           smokecircleId: currentSmokeCircle.id,
-          smokingMethod: rookMethode,
-          smokedProduct: wietSelectie
+          smokingMethod: smokeMethod,
+          smokedProduct: weedStrain
         })
-        customMessage = `${message.author} is niet te stoppen! Deze jongen gaat gewoon nog een keer met zijn ${rookMethode} vol gestampt met ${wietSelectie}`;
+        customMessage = `${message.author} is niet te stoppen! Deze jongen gaat gewoon nog een keer met zijn ${smokeMethod} vol gestampt met ${weedStrain}`;
         message.channel.send(customMessage);
         return;
       }
     }
 
-    currentSmokeCircle.addSmokers([currentSmoker], { through: { smokingMethod: rookMethode, smokedProduct: wietSelectie } });
-    customMessage = `${message.author} heeft besloten om het rookcirkeltje van ${message.guild.members.get(currentSmokeCircle.starterId)} binnen te sluipen met zijn ${rookMethode} vol gestampt met ${wietSelectie}`
+    currentSmokeCircle.addSmokers([currentSmoker], { through: { smokingMethod: smokeMethod, smokedProduct: weedStrain } });
+    customMessage = `${message.author} heeft besloten om het rookcirkeltje van ${message.guild.members.get(currentSmokeCircle.starterId)} binnen te sluipen met zijn ${smokeMethod} vol gestampt met ${weedStrain}`
 
   } else {
-    tempCurrSmoker = await fetchUser();
+    tempCurrSmoker = await fethOrCreateUser();
 
     currentSmokeCircle = await models.SmokeCircle.create();
-    await currentSmokeCircle.addSmokers([tempCurrSmoker], { through: { smokingMethod: rookMethode, smokedProduct: wietSelectie } });
+    await currentSmokeCircle.addSmokers([tempCurrSmoker], { through: { smokingMethod: smokeMethod, smokedProduct: weedStrain } });
     currentSmokeCircle.setStarter(tempCurrSmoker);
 
-    customMessage = `Zo. ${message.author} doet nog wat extra ${wietSelectie} in zijn ${rookMethode}, en begint hiermee een lekker rookcirkeltje. Ga met ook mee op ruimtereis met ${message.author}!`;
+    customMessage = messages.circleCreation;
     setTimeout(clearSmokeCircle, timeOut);
   }
   message.channel.send(customMessage);
 }
 
 async function rookStats(message) {
-
   let methodCount = await countByAttribute('smokingMethod', "methodCount");
   let weedSpecies = await countByAttribute('smokedProduct', "smokeCount");
   let rookCirkelCount = await models.SmokeCircle.count();
 
   console.log(methodCount);
   message.channel.send(` 
-    \`
-    Deze statisieken zijn vergaard tijdens ${rookCirkelCount} rookcirkels \n
-    rookmethodes 
-    ${methodCount.map((method, index) => `${method.smokingMethod}: ${method.methodCount}x \n`).join('')}
-    soorten wiet
-    ${weedSpecies.map((weed, index) => `${weed.smokedProduct}: ${weed.smokeCount}x \n`).join('')}
-  
-  \``)
+Pfoe, ${rookCirkelCount} rookcirkels alweer.  \n
+**joint, pijp, bong, alles wat je maar kan verzinnen om wiet mee te roken**
+${methodCount.map((method, index) => `${method.smokingMethod}: ${method.methodCount}x \n`).join('')}
+**wietjes, hashjes en dat soort spul**
+${weedSpecies.map((weed, index) => `${weed.smokedProduct}: ${weed.smokeCount}x \n`).join('')}
+`)
 }
 
 client.on("message", async function (message) {
   if (message.author.bot) return;
-  const bericht = message.content.toLowerCase();
-  const args = message.content.slice(config.prefix.length).trim().split(/ +/g);
-  const command = args.shift().toLowerCase();
+  let textMessage = message.content.toLowerCase();
+  let arguments = message.content.slice(config.prefix.length).trim().split(/ +/g);
+  const command = arguments.shift().toLowerCase();
 
   //Check message for word to comment on
   const responses = { 'ruimte': '🌌', 'hoog': '☁' }
+  const commands = {
+    'ping': pingResponse = () => { message.channel.send("pong!") },
+  };
+  const testCommands = commands + {};
   for (let [trigger, response] of Object.entries(responses)) {
-    if (bericht.includes(trigger)) {
+    if (textMessage.includes(trigger)) {
       message.react(response)
     } else {
       continue
@@ -160,15 +196,12 @@ client.on("message", async function (message) {
 
   if (!message.content.startsWith(config.prefix)) return;
 
-
-
-  // list with commands
   if (command === 'ping') {
-    message.channel.send("pong!");
+
   }
 
   if (command === "asl") {
-    let [age, sex, ...location] = args;
+    let [age, sex, ...location] = arguments;
     message.channel.send(`Hallo ${message.author.username}, Ik zie dat je ${age} jaar oud en een ${sex} bent uit ${location}. Wil je me klapjes geven?`);
   }
 
@@ -196,7 +229,7 @@ client.on("message", async function (message) {
     message.channel.send('haha, 69 is het seksgetal, ik snap hem. Heel grappig, hoor.')
   }
   if (command === "rook") {
-    smokeCircle(message, args, command, bericht);
+    smokeCircle(message, arguments, command, message);
   }
 
   if (command === "rookstats") {
@@ -247,7 +280,7 @@ client.on("message", async function (message) {
 
   if (command === "opgedonderd") {
     let member = message.mentions.members.first();
-    let reason = args.slice(1).join(" ");
+    let reason = arguments.slice(1).join(" ");
     member.kick(reason);
   }
 });
